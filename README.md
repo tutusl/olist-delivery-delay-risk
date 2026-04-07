@@ -50,8 +50,8 @@ Secondary metrics:
 
 - ROC-AUC
 - balanced accuracy
-- F2 score — weighs recall 4x more than precision, reflecting that missing a late delivery is costlier than a false alarm
-- Precision@500 — precision among the top 500 highest-risk predictions, simulating a fixed-capacity intervention scenario
+- F2 score - weighs recall 4x more than precision, reflecting that missing a late delivery is costlier than a false alarm
+- Precision@500 - precision among the top 500 highest-risk predictions, simulating a fixed-capacity intervention scenario
 
 ## Leakage policy
 
@@ -115,7 +115,7 @@ data/raw/
 ### 4. Run tests
 
 ```powershell
-pytest
+python -m pytest
 ```
 
 ### 5. Open the notebook
@@ -149,22 +149,42 @@ The notebook is structured around three questions:
 2. Which purchase-time patterns seem associated with late deliveries?
 3. Which customer, payment, and seller/product signals look promising before modeling?
 
+## First iteration results
+
+The first end-to-end run used 96,470 delivered orders. The late-delivery base rate is **8.11%**.
+
+| Metric | DummyClassifier | RandomForestClassifier |
+|---|---|---|
+| Average Precision | 0.081 | 0.305 |
+| ROC-AUC | 0.500 | 0.782 |
+| Balanced Accuracy | 0.500 | 0.610 |
+| F2 Score | 0.000 | 0.273 |
+| Precision@500 | 0.084 | 0.488 |
+
+The Random Forest picks up real signal - average precision is roughly 3.8x the baseline - but there is clear room to improve.
+
+### Key EDA findings
+
+1. Late-delivery rates vary significantly by customer state, suggesting geographic and logistics patterns matter.
+2. Orders with shorter estimated delivery windows are more likely to arrive late, meaning tighter promises carry more risk.
+3. Payment type shows some association with delay rates, possibly reflecting different buyer profiles or order types.
+
+### Planned next experiments
+
+- Try gradient boosting (XGBoost or LightGBM) as a stronger alternative to Random Forest.
+- Test safer categorical alternatives such as ordinal encoding or out-of-fold target encoding.
+- Tune hyperparameters with cross-validated search.
+- Add feature importance analysis to identify which purchase-time signals drive the most lift.
+
 ## Current status
 
-This repository already includes:
+This repository has completed its first full iteration:
 
 - project structure;
 - starter pipeline code;
 - test coverage for schema, target creation, missing values, and leakage guardrails;
-- a notebook template for the first round of EDA;
-- a model card template.
-
-What is still expected from the first project iteration:
-
-- load the real Olist files into `data/raw/`;
-- run the notebook and training script;
-- write the first concrete findings in this README and in the model card;
-- optionally pin this repo on your GitHub profile after the first full run.
+- first EDA notebook with five plots covering target balance, state-level rates, delivery windows, payment types, and price distributions;
+- first training run with baseline and Random Forest results documented.
 
 ## Suggested next steps
 
