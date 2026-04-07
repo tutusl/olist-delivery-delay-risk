@@ -44,6 +44,8 @@ Secondary metrics:
 
 - ROC-AUC
 - balanced accuracy
+- F2 score — harmonic mean of precision and recall with beta=2, weighting recall 4x more than precision. Chosen because missing a late delivery is costlier than a false alarm in an operational triage setting.
+- Precision@500 — fraction of truly late orders among the 500 orders the model scores as highest risk. Reflects a realistic operational scenario where a team can only intervene on a fixed number of orders per day.
 
 ## Starter models
 

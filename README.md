@@ -50,6 +50,8 @@ Secondary metrics:
 
 - ROC-AUC
 - balanced accuracy
+- F2 score — weighs recall 4x more than precision, reflecting that missing a late delivery is costlier than a false alarm
+- Precision@500 — precision among the top 500 highest-risk predictions, simulating a fixed-capacity intervention scenario
 
 ## Leakage policy
 

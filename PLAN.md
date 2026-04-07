@@ -29,6 +29,7 @@ Build a portfolio-ready data science project that predicts late deliveries in th
 
 - target: late delivery flag;
 - primary metric: average precision;
+- secondary metrics: ROC-AUC, balanced accuracy, F2 score, Precision@500;
 - baseline: `DummyClassifier`;
 - stronger model: `RandomForestClassifier`;
 - test split: stratified holdout.
