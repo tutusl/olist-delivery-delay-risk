@@ -38,7 +38,7 @@
 ## Second modeling iteration
 
 - [x] Switch to chronological train/test split
-- [x] Add gradient boosting model (LightGBM)
+- [x] Add gradient boosting model (HistGradientBoostingClassifier)
 - [ ] Tune hyperparameters with cross-validated search
 - [x] Add feature importance / explainability analysis
 - [x] Update README and model_card.md with iteration 2 results

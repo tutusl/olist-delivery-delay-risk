@@ -3,12 +3,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import average_precision_score, balanced_accuracy_score, fbeta_score, roc_auc_score
@@ -49,7 +48,8 @@ def build_preprocessor() -> ColumnTransformer:
     )
 
 
-def build_lgbm_preprocessor() -> ColumnTransformer:
+def build_ordinal_preprocessor() -> ColumnTransformer:
+    """Preprocessor with ordinal encoding — suited for tree-based boosters."""
     numeric_pipeline = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="median")),
@@ -71,7 +71,6 @@ def build_lgbm_preprocessor() -> ColumnTransformer:
 
 
 def build_models() -> dict[str, Pipeline]:
-    pos_weight = 10  # approximate (1 - 0.08) / 0.08 ≈ 11, rounded down
     return {
         "dummy_baseline": Pipeline(
             steps=[
@@ -94,20 +93,18 @@ def build_models() -> dict[str, Pipeline]:
                 ),
             ]
         ),
-        "lightgbm": Pipeline(
+        "hist_gradient_boosting": Pipeline(
             steps=[
-                ("preprocessor", build_lgbm_preprocessor()),
+                ("preprocessor", build_ordinal_preprocessor()),
                 (
                     "model",
-                    lgb.LGBMClassifier(
-                        n_estimators=500,
+                    HistGradientBoostingClassifier(
+                        max_iter=500,
                         learning_rate=0.05,
-                        num_leaves=31,
-                        min_child_samples=20,
-                        scale_pos_weight=pos_weight,
-                        n_jobs=-1,
+                        max_leaf_nodes=31,
+                        min_samples_leaf=20,
+                        class_weight="balanced",
                         random_state=RANDOM_STATE,
-                        verbose=-1,
                     ),
                 ),
             ]
@@ -168,7 +165,59 @@ def compute_feature_importance(
     return importance_frame
 
 
-def run_training(data_dir: str | Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+def run_error_analysis(
+    model: Pipeline,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
+) -> pd.DataFrame:
+    """Break test-set performance by delivery-window bucket, customer state, and payment type."""
+    probabilities = model.predict_proba(X_test)[:, 1]
+
+    analysis = X_test.copy()
+    analysis["y_true"] = y_test.values
+    analysis["y_prob"] = probabilities
+
+    delivery_bins = [0, 10, 20, 30, float("inf")]
+    delivery_labels = ["0-10d", "10-20d", "20-30d", "30d+"]
+    analysis["delivery_window"] = pd.cut(
+        analysis["estimated_delivery_days"],
+        bins=delivery_bins,
+        labels=delivery_labels,
+        right=False,
+    )
+
+    slices: list[dict] = []
+
+    for label in delivery_labels:
+        mask = analysis["delivery_window"] == label
+        _append_slice(slices, f"delivery_window={label}", analysis[mask])
+
+    top_states = analysis["customer_state"].value_counts().head(5).index
+    for state in top_states:
+        mask = analysis["customer_state"] == state
+        _append_slice(slices, f"customer_state={state}", analysis[mask])
+
+    for ptype in analysis["payment_type_mode"].dropna().unique():
+        mask = analysis["payment_type_mode"] == ptype
+        _append_slice(slices, f"payment_type={ptype}", analysis[mask])
+
+    return pd.DataFrame(slices).sort_values("average_precision", ascending=False).reset_index(drop=True)
+
+
+def _append_slice(
+    slices: list[dict],
+    name: str,
+    subset: pd.DataFrame,
+) -> None:
+    n = len(subset)
+    if n < 30:
+        return
+    late_rate = subset["y_true"].mean()
+    ap = average_precision_score(subset["y_true"], subset["y_prob"]) if subset["y_true"].nunique() > 1 else float("nan")
+    slices.append({"slice": name, "n": n, "late_rate": round(late_rate, 4), "average_precision": round(ap, 4)})
+
+
+def run_training(data_dir: str | Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     tables = load_olist_tables(data_dir)
     modeling_frame = build_modeling_frame(tables)
     dataset = build_model_dataset(modeling_frame)
@@ -193,14 +242,21 @@ def run_training(data_dir: str | Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     result_frame = pd.DataFrame(results).sort_values("average_precision", ascending=False).reset_index(drop=True)
 
     importance_frame = pd.DataFrame()
+    error_frame = pd.DataFrame()
     if best_model is not None:
         print(f"\nComputing permutation importance for {best_model[0]}...")
         importance_frame = compute_feature_importance(best_model[1], X_test, y_test)
+        print(f"Running error analysis for {best_model[0]}...")
+        error_frame = run_error_analysis(best_model[1], X_test, y_test)
 
-    return result_frame, importance_frame
+    return result_frame, importance_frame, error_frame
 
 
-def save_training_summary(results: pd.DataFrame, importance: pd.DataFrame) -> Path:
+def save_training_summary(
+    results: pd.DataFrame,
+    importance: pd.DataFrame,
+    errors: pd.DataFrame,
+) -> Path:
     repo_root = Path(__file__).resolve().parents[2]
     output_path = repo_root / "reports" / "training_summary.csv"
     results.to_csv(output_path, index=False)
@@ -208,6 +264,10 @@ def save_training_summary(results: pd.DataFrame, importance: pd.DataFrame) -> Pa
         importance_path = repo_root / "reports" / "feature_importance.csv"
         importance.to_csv(importance_path, index=False)
         print(f"Saved feature importance to: {importance_path}")
+    if not errors.empty:
+        errors_path = repo_root / "reports" / "error_analysis.csv"
+        errors.to_csv(errors_path, index=False)
+        print(f"Saved error analysis to: {errors_path}")
     return output_path
 
 
@@ -222,12 +282,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    results, importance = run_training(args.data_dir)
-    output_path = save_training_summary(results, importance)
+    results, importance, errors = run_training(args.data_dir)
+    output_path = save_training_summary(results, importance, errors)
     print(results.round(4).to_string(index=False))
     if not importance.empty:
         print(f"\nTop 10 features by permutation importance:")
         print(importance.head(10).round(4).to_string(index=False))
+    if not errors.empty:
+        print(f"\nError analysis by slice:")
+        print(errors.to_string(index=False))
     print(f"\nSaved training summary to: {output_path}")
 
 

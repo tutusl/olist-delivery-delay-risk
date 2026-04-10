@@ -140,9 +140,10 @@ python -m src.models.train
 6. Trains:
    - a `DummyClassifier` baseline;
    - a `RandomForestClassifier`;
-   - a `LGBMClassifier` (gradient boosting).
+   - a `HistGradientBoostingClassifier`.
 7. Computes permutation importance for the best model.
-8. Saves a summary report to `reports/training_summary.csv` and feature importance to `reports/feature_importance.csv`.
+8. Runs error analysis across delivery-window, state, and payment-type slices.
+9. Saves reports to `reports/training_summary.csv`, `reports/feature_importance.csv`, and `reports/error_analysis.csv`.
 
 ## Initial EDA questions
 
@@ -168,21 +169,23 @@ The Random Forest picks up real signal — average precision is roughly 3.8x the
 
 ## Second iteration results (chronological split)
 
-Iteration 2 switched to a **chronological train/test split** (train on earlier 80% of orders, test on later 20%), added LightGBM, and computed permutation importance. The late-delivery base rate in the test period is **5.3%**.
+Iteration 2 switched to a **chronological train/test split** (train on earlier 80% of orders, test on later 20%), added `HistGradientBoostingClassifier`, and computed permutation importance plus error analysis. The late-delivery base rate in the test period is **5.3%**.
 
-| Metric | DummyClassifier | RandomForestClassifier | LGBMClassifier |
+| Metric | DummyClassifier | RandomForestClassifier | HistGradientBoosting |
 |---|---|---|---|
-| Average Precision | 0.053 | 0.086 | 0.079 |
-| ROC-AUC | 0.500 | 0.669 | 0.630 |
-| Balanced Accuracy | 0.500 | 0.505 | 0.527 |
-| F2 Score | 0.000 | 0.019 | 0.120 |
-| Precision@500 | 0.050 | 0.106 | 0.102 |
+| Average Precision | 0.053 | 0.086 | 0.083 |
+| ROC-AUC | 0.500 | 0.669 | 0.683 |
+| Balanced Accuracy | 0.500 | 0.505 | 0.522 |
+| F2 Score | 0.000 | 0.019 | 0.115 |
+| Precision@500 | 0.050 | 0.106 | 0.076 |
+
+Random Forest leads on average precision and Precision@500 (better ranking). HistGradientBoosting has a higher ROC-AUC and F2 score, meaning it catches more late orders at its default threshold. Neither model dominates across all metrics — the choice depends on whether the use case values ranking or recall more.
 
 ### Why the drop from iteration 1?
 
 The random split leaked temporal patterns: orders from the same time period appeared in both train and test, inflating metrics. The chronological split is a more honest evaluation — it simulates deploying the model today to predict tomorrow's delays. The large drop shows that late-delivery patterns shift over time, making this a harder problem than the first iteration suggested.
 
-### Feature importance (permutation, best model)
+### Feature importance (permutation, Random Forest)
 
 | Feature | Importance |
 |---|---|
@@ -193,6 +196,21 @@ The random split leaked temporal patterns: orders from the same time period appe
 | customer_state | 0.001 |
 
 The estimated delivery window dominates — tighter promised windows carry much higher risk of arriving late. Geographic features (seller state, customer state) are the next most important signals.
+
+### Error analysis
+
+The model performs unevenly across slices of the test set:
+
+| Slice | N | Late rate | Avg Precision |
+|---|---|---|---|
+| delivery_window=0-10d | 2,901 | 19.9% | 0.221 |
+| customer_state=SP | 8,921 | 7.4% | 0.157 |
+| payment_type=boleto | 3,526 | 7.0% | 0.110 |
+| payment_type=credit_card | 14,753 | 4.8% | 0.080 |
+| delivery_window=10-20d | 6,407 | 4.2% | 0.073 |
+| delivery_window=30d+ | 4,043 | 0.8% | 0.049 |
+
+Orders with short delivery windows (0-10 days) have the highest late rate (20%) and the model's best average precision (0.22) — exactly where intervention would matter most. Longer windows have such low late rates that there is little signal to exploit. Sao Paulo (SP) is the strongest state-level slice, likely because it is both the largest market and a logistics hub with more variance in delivery performance.
 
 ### Key EDA findings
 
@@ -208,15 +226,16 @@ This repository has completed two modeling iterations:
 - test coverage for schema, target creation, missing values, and leakage guardrails;
 - first EDA notebook with five plots covering target balance, state-level rates, delivery windows, payment types, and price distributions;
 - first training run with baseline and Random Forest (random split);
-- second training run with chronological split, LightGBM, and permutation importance.
+- second training run with chronological split, HistGradientBoosting, permutation importance, and error analysis.
 
 ### What the iterations showed
 
 The switch from random to chronological splitting was the single biggest methodological improvement. It revealed that the first iteration's 0.305 average precision was unreliable and that the real out-of-time signal is modest. This is a common and important lesson: always evaluate time-dependent problems with time-aware splits.
 
+The error analysis shows the model adds the most value on short-window orders — the highest-risk segment — which is a practical positive even though overall metrics are modest.
+
 ## Suggested next steps
 
-- Hyperparameter tuning with cross-validated search on the chronological folds.
-- Slice analysis: break test-set performance by customer state, delivery-window bucket, and payment type.
+- Hyperparameter tuning with cross-validated search on chronological folds.
 - Calibration: predicted probabilities are not currently reliable as true delay likelihoods.
 - Additional portfolio projects: `olist-funnel-and-seller-conversion` (Product/Analytics) or `olist-review-score-prediction` (second modeling project).

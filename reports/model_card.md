@@ -51,7 +51,7 @@ Secondary metrics:
 
 - Baseline: `DummyClassifier(strategy="prior")`
 - Random Forest: `RandomForestClassifier(n_estimators=300, min_samples_leaf=5, class_weight="balanced_subsample")`
-- LightGBM: `LGBMClassifier(n_estimators=500, learning_rate=0.05, num_leaves=31, scale_pos_weight=10)`
+- HistGradientBoosting: `HistGradientBoostingClassifier(max_iter=500, learning_rate=0.05, max_leaf_nodes=31, class_weight="balanced")`
 
 ## Iteration 1 — random stratified split
 
@@ -77,17 +77,17 @@ These results were later found to be overly optimistic due to temporal leakage i
 - Split method: chronological (train on earlier 80%, test on later 20%)
 - Late-delivery rate in test period: ~5.3%
 
-| Metric | DummyClassifier | RandomForestClassifier | LGBMClassifier |
+| Metric | DummyClassifier | RandomForestClassifier | HistGradientBoosting |
 |---|---|---|---|
-| Average Precision | 0.053 | 0.086 | 0.079 |
-| ROC-AUC | 0.500 | 0.669 | 0.630 |
-| Balanced Accuracy | 0.500 | 0.505 | 0.527 |
-| F2 Score | 0.000 | 0.019 | 0.120 |
-| Precision@500 | 0.050 | 0.106 | 0.102 |
+| Average Precision | 0.053 | 0.086 | 0.083 |
+| ROC-AUC | 0.500 | 0.669 | 0.683 |
+| Balanced Accuracy | 0.500 | 0.505 | 0.522 |
+| F2 Score | 0.000 | 0.019 | 0.115 |
+| Precision@500 | 0.050 | 0.106 | 0.076 |
 
 ### Current best model
 
-RandomForestClassifier by average precision (0.086). The improvement over baseline is modest (~1.6x), reflecting the difficulty of predicting delays out-of-time with only purchase-time features. LightGBM achieves a higher F2 score (0.120 vs 0.019), suggesting it finds a better precision-recall trade-off at its default threshold.
+RandomForestClassifier by average precision (0.086). The improvement over baseline is modest (~1.6x), reflecting the difficulty of predicting delays out-of-time with only purchase-time features. HistGradientBoosting achieves a higher F2 score (0.115 vs 0.019) and ROC-AUC (0.683 vs 0.669), meaning it catches more late orders at its default threshold, but Random Forest is better at ranking the riskiest orders to the top.
 
 ### Feature importance (permutation, Random Forest)
 
@@ -100,6 +100,21 @@ RandomForestClassifier by average precision (0.086). The improvement over baseli
 | customer_state | 0.001 |
 
 The estimated delivery window is the dominant predictor — orders with tighter promised delivery windows are far more likely to arrive late.
+
+### Error analysis
+
+Performance varies substantially across test-set slices:
+
+| Slice | N | Late rate | Avg Precision |
+|---|---|---|---|
+| delivery_window=0-10d | 2,901 | 19.9% | 0.221 |
+| customer_state=SP | 8,921 | 7.4% | 0.157 |
+| payment_type=boleto | 3,526 | 7.0% | 0.110 |
+| payment_type=credit_card | 14,753 | 4.8% | 0.080 |
+| delivery_window=10-20d | 6,407 | 4.2% | 0.073 |
+| delivery_window=30d+ | 4,043 | 0.8% | 0.049 |
+
+The model is most useful on short-window orders (0-10 days), where 1 in 5 deliveries is late and average precision reaches 0.22. This is the segment where operational intervention would have the most impact. Longer delivery windows have near-zero late rates, leaving little room for the model to add value.
 
 ## Leakage policy
 
@@ -137,3 +152,4 @@ A runtime guard (`validate_no_leakage`) raises an error if any of these columns 
 - Notebook entry point: `notebooks/01_eda.ipynb`
 - Results file: `reports/training_summary.csv`
 - Feature importance: `reports/feature_importance.csv`
+- Error analysis: `reports/error_analysis.csv`
