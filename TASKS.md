@@ -10,27 +10,35 @@
 
 ## Data setup
 
-- [ ] Download the Olist dataset from Kaggle
-- [ ] Place the required CSV files inside `data/raw/`
-- [ ] Confirm the expected filenames match the repository loader
+- [x] Download the Olist dataset from Kaggle
+- [x] Place the required CSV files inside `data/raw/`
+- [x] Confirm the expected filenames match the repository loader
 
 ## First analysis pass
 
-- [ ] Run `pytest`
-- [ ] Open `notebooks/01_eda.ipynb`
-- [ ] Answer the three EDA questions in the notebook
-- [ ] Write 4 to 6 useful charts
+- [x] Run `pytest`
+- [x] Open `notebooks/01_eda.ipynb`
+- [x] Answer the three EDA questions in the notebook
+- [x] Write 4 to 6 useful charts
 
 ## First modeling pass
 
-- [ ] Run `python -m src.models.train`
-- [ ] Compare the baseline with the tree-based model
-- [ ] Record metrics in `reports/model_card.md`
-- [ ] Update the README with real findings
+- [x] Run `python -m src.models.train`
+- [x] Compare the baseline with the tree-based model
+- [x] Record metrics in `reports/model_card.md`
+- [x] Update the README with real findings
 
 ## Publish
 
-- [ ] Initialize git if needed
-- [ ] Commit the scaffold
-- [ ] Push to the personal GitHub repository
+- [x] Initialize git if needed
+- [x] Commit the scaffold
+- [x] Push to the personal GitHub repository
 - [ ] Pin the repository on the GitHub profile
+
+## Second modeling iteration
+
+- [x] Switch to chronological train/test split
+- [x] Add gradient boosting model (LightGBM)
+- [ ] Tune hyperparameters with cross-validated search
+- [x] Add feature importance / explainability analysis
+- [x] Update README and model_card.md with iteration 2 results

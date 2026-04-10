@@ -14,7 +14,7 @@ LEAKAGE_COLUMNS = {
     "review_comment_message",
 }
 
-IDENTIFIER_COLUMNS = {"order_id"}
+IDENTIFIER_COLUMNS = {"order_id", "order_purchase_timestamp"}
 
 NUMERIC_FEATURES = [
     "item_count",
@@ -95,7 +95,7 @@ def build_model_dataset(modeling_frame: pd.DataFrame) -> pd.DataFrame:
         dataset["primary_seller_state"].fillna("unknown") == dataset["customer_state"].fillna("unknown")
     ).astype(int)
 
-    selected_columns = ["order_id"] + NUMERIC_FEATURES + CATEGORICAL_FEATURES + ["is_late"]
+    selected_columns = ["order_id", "order_purchase_timestamp"] + NUMERIC_FEATURES + CATEGORICAL_FEATURES + ["is_late"]
     dataset = dataset[selected_columns].copy()
     dataset = dataset.replace([np.inf, -np.inf], np.nan)
 

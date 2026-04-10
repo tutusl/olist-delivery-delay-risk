@@ -136,10 +136,13 @@ python -m src.models.train
 2. Aggregates order item, payment, product, and seller signals at the order level.
 3. Builds a modeling frame for delivered orders only.
 4. Creates purchase-time features.
-5. Trains:
+5. Splits the data chronologically (earlier orders train, later orders test).
+6. Trains:
    - a `DummyClassifier` baseline;
-   - a `RandomForestClassifier` as the first stronger model.
-6. Saves a summary report to `reports/training_summary.csv`.
+   - a `RandomForestClassifier`;
+   - a `LGBMClassifier` (gradient boosting).
+7. Computes permutation importance for the best model.
+8. Saves a summary report to `reports/training_summary.csv` and feature importance to `reports/feature_importance.csv`.
 
 ## Initial EDA questions
 
@@ -149,9 +152,9 @@ The notebook is structured around three questions:
 2. Which purchase-time patterns seem associated with late deliveries?
 3. Which customer, payment, and seller/product signals look promising before modeling?
 
-## First iteration results
+## First iteration results (random split)
 
-The first end-to-end run used 96,470 delivered orders. The late-delivery base rate is **8.11%**.
+The first end-to-end run used 96,470 delivered orders with a random stratified 80/20 split. The late-delivery base rate is **8.11%**.
 
 | Metric | DummyClassifier | RandomForestClassifier |
 |---|---|---|
@@ -161,7 +164,35 @@ The first end-to-end run used 96,470 delivered orders. The late-delivery base ra
 | F2 Score | 0.000 | 0.273 |
 | Precision@500 | 0.084 | 0.488 |
 
-The Random Forest picks up real signal - average precision is roughly 3.8x the baseline - but there is clear room to improve.
+The Random Forest picks up real signal — average precision is roughly 3.8x the baseline — but these numbers turned out to be overly optimistic (see iteration 2).
+
+## Second iteration results (chronological split)
+
+Iteration 2 switched to a **chronological train/test split** (train on earlier 80% of orders, test on later 20%), added LightGBM, and computed permutation importance. The late-delivery base rate in the test period is **5.3%**.
+
+| Metric | DummyClassifier | RandomForestClassifier | LGBMClassifier |
+|---|---|---|---|
+| Average Precision | 0.053 | 0.086 | 0.079 |
+| ROC-AUC | 0.500 | 0.669 | 0.630 |
+| Balanced Accuracy | 0.500 | 0.505 | 0.527 |
+| F2 Score | 0.000 | 0.019 | 0.120 |
+| Precision@500 | 0.050 | 0.106 | 0.102 |
+
+### Why the drop from iteration 1?
+
+The random split leaked temporal patterns: orders from the same time period appeared in both train and test, inflating metrics. The chronological split is a more honest evaluation — it simulates deploying the model today to predict tomorrow's delays. The large drop shows that late-delivery patterns shift over time, making this a harder problem than the first iteration suggested.
+
+### Feature importance (permutation, best model)
+
+| Feature | Importance |
+|---|---|
+| estimated_delivery_days | 0.036 |
+| primary_seller_state | 0.007 |
+| avg_product_volume_cm3 | 0.002 |
+| payment_type_mode | 0.002 |
+| customer_state | 0.001 |
+
+The estimated delivery window dominates — tighter promised windows carry much higher risk of arriving late. Geographic features (seller state, customer state) are the next most important signals.
 
 ### Key EDA findings
 
@@ -169,26 +200,23 @@ The Random Forest picks up real signal - average precision is roughly 3.8x the b
 2. Orders with shorter estimated delivery windows are more likely to arrive late, meaning tighter promises carry more risk.
 3. Payment type shows some association with delay rates, possibly reflecting different buyer profiles or order types.
 
-### Planned next experiments
-
-- Try gradient boosting (XGBoost or LightGBM) as a stronger alternative to Random Forest.
-- Test safer categorical alternatives such as ordinal encoding or out-of-fold target encoding.
-- Tune hyperparameters with cross-validated search.
-- Add feature importance analysis to identify which purchase-time signals drive the most lift.
-
 ## Current status
 
-This repository has completed its first full iteration:
+This repository has completed two modeling iterations:
 
-- project structure;
-- starter pipeline code;
+- project structure and starter pipeline code;
 - test coverage for schema, target creation, missing values, and leakage guardrails;
 - first EDA notebook with five plots covering target balance, state-level rates, delivery windows, payment types, and price distributions;
-- first training run with baseline and Random Forest results documented.
+- first training run with baseline and Random Forest (random split);
+- second training run with chronological split, LightGBM, and permutation importance.
+
+### What the iterations showed
+
+The switch from random to chronological splitting was the single biggest methodological improvement. It revealed that the first iteration's 0.305 average precision was unreliable and that the real out-of-time signal is modest. This is a common and important lesson: always evaluate time-dependent problems with time-aware splits.
 
 ## Suggested next steps
 
-After this first repo is working end-to-end, the next portfolio options are:
-
-- `olist-funnel-and-seller-conversion` for Product/Analytics;
-- `olist-review-score-prediction` for a second modeling project.
+- Hyperparameter tuning with cross-validated search on the chronological folds.
+- Slice analysis: break test-set performance by customer state, delivery-window bucket, and payment type.
+- Calibration: predicted probabilities are not currently reliable as true delay likelihoods.
+- Additional portfolio projects: `olist-funnel-and-seller-conversion` (Product/Analytics) or `olist-review-score-prediction` (second modeling project).
