@@ -17,6 +17,10 @@ venv/
 .DS_Store
 Thumbs.db
 
+# IDE / tool configs
+.idea/
+.claude/
+
 # Data
 data/raw/*.csv
 data/processed/*
