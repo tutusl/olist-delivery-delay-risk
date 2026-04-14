@@ -17,9 +17,33 @@
 ## First analysis pass
 
 - [x] Run `pytest`
-- [x] Open `notebooks/01_eda.ipynb`
+- [x] Open `notebooks/02_eda.ipynb`
 - [x] Answer the three EDA questions in the notebook
 - [x] Write 4 to 6 useful charts
+
+## Data understanding pass
+
+- [x] Scaffold `notebooks/01_data_understanding.ipynb`
+- [x] Document table grain and declared primary keys
+- [x] Validate join cardinality against expected 1:1 / 1:N shapes
+- [x] Report missingness for all tables
+- [x] Duplicate checks beyond declared keys
+- [x] Order-status funnel to the delivered-only subset
+
+## Temporal EDA pass
+
+- [x] Extend `notebooks/02_eda.ipynb` with a temporal-patterns section
+- [x] Late rate by purchase month, ISO week, weekday, and hour
+- [x] Estimated delivery window by month
+- [x] Written explanation for the random-vs-chronological gap
+
+## Route-level EDA pass
+
+- [x] Scaffold `notebooks/03_route_eda.ipynb`
+- [x] Seller-state x customer-state late-rate heatmap with volume masking
+- [x] Riskiest and safest corridors above a minimum-volume threshold
+- [x] Recorded the geolocation-distance follow-up as a design note
+- [ ] Implement haversine distance feature in `src/features/engineering.py`
 
 ## First modeling pass
 

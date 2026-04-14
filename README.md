@@ -74,7 +74,9 @@ olist-delivery-delay-risk/
 |-- requirements.txt
 |-- .gitignore
 |-- notebooks/
-|   `-- 01_eda.ipynb
+|   |-- 01_data_understanding.ipynb
+|   |-- 02_eda.ipynb
+|   `-- 03_route_eda.ipynb
 |-- src/
 |   |-- data/
 |   |-- features/
@@ -118,11 +120,19 @@ data/raw/
 python -m pytest
 ```
 
-### 5. Open the notebook
+### 5. Open the notebooks
+
+Start with the data-understanding notebook (grain, joins, missingness, duplicate checks, and the order-status funnel to the delivered-only subset), then move on to the modeling-oriented EDA:
 
 ```powershell
-jupyter notebook notebooks/01_eda.ipynb
+jupyter notebook notebooks/01_data_understanding.ipynb
+jupyter notebook notebooks/02_eda.ipynb
+jupyter notebook notebooks/03_route_eda.ipynb
 ```
+
+- `01_data_understanding.ipynb` - table grain, join cardinality, missingness, duplicate checks, order-status funnel to the delivered-only subset.
+- `02_eda.ipynb` - target balance, state-level late rates, estimated-window and payment/price distributions, and a temporal-drift section that explains the random-vs-chronological split gap.
+- `03_route_eda.ipynb` - seller-state x customer-state late-rate heatmap, riskiest/safest corridors, and the design for a follow-up geolocation-distance feature.
 
 ### 6. Train the starter models
 

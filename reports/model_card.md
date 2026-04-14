@@ -170,7 +170,7 @@ A runtime guard (`validate_no_leakage`) raises an error if any of these columns 
 
 - Environment: `requirements.txt`
 - Main training entry point: `python -m src.models.train`
-- Notebook entry point: `notebooks/01_eda.ipynb`
+- Notebook entry points: `notebooks/01_data_understanding.ipynb` (grain, joins, missingness, funnel), `notebooks/02_eda.ipynb` (modeling-oriented EDA with temporal drift section), and `notebooks/03_route_eda.ipynb` (seller-customer corridor analysis)
 - Results file: `reports/training_summary.csv`
 - Feature importance: `reports/feature_importance.csv`
 - Error analysis: `reports/error_analysis.csv`
