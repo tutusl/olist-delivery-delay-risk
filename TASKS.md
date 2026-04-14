@@ -45,6 +45,15 @@
 - [x] Recorded the geolocation-distance follow-up as a design note
 - [ ] Implement haversine distance feature in `src/features/engineering.py`
 
+## Cohort EDA pass
+
+- [x] Scaffold `notebooks/04_cohort_eda.ipynb`
+- [x] Late rate by seller volume bucket (with primary-seller mode join)
+- [x] Late rate by item-count and product-weight quintile buckets
+- [x] Late rate by product category with minimum-volume threshold
+- [x] Missingness-as-signal check on `missing_product_metadata_share`
+- [ ] Promote confirmed cohort signals to `src/features/engineering.py` (target-encoded category, log seller volume)
+
 ## First modeling pass
 
 - [x] Run `python -m src.models.train`

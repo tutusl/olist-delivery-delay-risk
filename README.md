@@ -76,7 +76,8 @@ olist-delivery-delay-risk/
 |-- notebooks/
 |   |-- 01_data_understanding.ipynb
 |   |-- 02_eda.ipynb
-|   `-- 03_route_eda.ipynb
+|   |-- 03_route_eda.ipynb
+|   `-- 04_cohort_eda.ipynb
 |-- src/
 |   |-- data/
 |   |-- features/
@@ -128,11 +129,13 @@ Start with the data-understanding notebook (grain, joins, missingness, duplicate
 jupyter notebook notebooks/01_data_understanding.ipynb
 jupyter notebook notebooks/02_eda.ipynb
 jupyter notebook notebooks/03_route_eda.ipynb
+jupyter notebook notebooks/04_cohort_eda.ipynb
 ```
 
 - `01_data_understanding.ipynb` - table grain, join cardinality, missingness, duplicate checks, order-status funnel to the delivered-only subset.
 - `02_eda.ipynb` - target balance, state-level late rates, estimated-window and payment/price distributions, and a temporal-drift section that explains the random-vs-chronological split gap.
 - `03_route_eda.ipynb` - seller-state x customer-state late-rate heatmap, riskiest/safest corridors, and the design for a follow-up geolocation-distance feature.
+- `04_cohort_eda.ipynb` - seller-volume, item-count, weight, and product-category cohorts, plus a check of whether `missing_product_metadata_share` is real signal or noise.
 
 ### 6. Train the starter models
 
